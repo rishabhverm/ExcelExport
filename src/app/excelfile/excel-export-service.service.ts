@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style'; // Use xlsx-js-style for styling
 import { Injectable } from '@angular/core';
 import { saveAs } from 'file-saver';
 
@@ -6,10 +6,18 @@ import { saveAs } from 'file-saver';
   providedIn: 'root',
 })
 export class ExcelService {
+  private readonly EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   downloadExcel(employees: any[] = []) {
     const headers = ['First Name', 'Last Name', 'City', 'Date'];
 
-    // Prepare data for the Excel file
+    // Define styles for the header row
+    const headerStyle = {
+      font: { bold: true }, // Bold text
+      fill: { fgColor: { rgb: 'D3D3D3' } }, // Background color: #D3D3D3 (Light Gray)
+      alignment: { horizontal: 'center', vertical: 'center' }, // Center text
+    };
+
+    // Define data for the Excel file
     const data = employees.length
       ? employees.map((emp) => ({
           'First Name': emp.firstName || '',
@@ -19,40 +27,55 @@ export class ExcelService {
         }))
       : [headers.reduce((acc, header) => ({ ...acc, [header]: '' }), {})];
 
-    // Create a worksheet with auto filter and column fitting
+    // Create a worksheet
     const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data);
 
-    // Add headers manually if no data
-    if (!employees.length) {
-      XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: 'A1' });
-    }
+    // Ensure headers are always present
+    XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: 'A1' });
+
+    // Apply styling to header row
+    headers.forEach((_, colIndex) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+      if (!worksheet[cellRef]) worksheet[cellRef] = { v: headers[colIndex] }; // Ensure cell exists
+      worksheet[cellRef].s = headerStyle; // Apply header styles
+    });
+
+    // Set row height for header (35px)
+    worksheet['!rows'] = [{ hpx: 35 }];
+
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 20 }, // First Name - Auto width
+      { wch: 57 }, // Last Name - Fixed width (57)
+      { wch: 20 }, // City - Auto width
+      { wch: 20 }, // Date - Auto width
+    ];
 
     // Apply auto filter
-    const range = XLSX.utils.decode_range(worksheet['!ref']!);
-    worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    if (worksheet['!ref']) {
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    }
 
-    // Auto fit columns
-    worksheet['!cols'] = headers.map(() => ({ wpx: 100 }));
-
-    // Create workbook
+    // Create a workbook and append the worksheet
     const workbook: XLSX.WorkBook = {
-      Sheets: { data: worksheet },
-      SheetNames: ['data'],
+      Sheets: { Employees: worksheet },
+      SheetNames: ['Employees'],
     };
 
-    // Write workbook to file
+    // Convert workbook to a binary Excel file
     const excelBuffer: any = XLSX.write(workbook, {
       bookType: 'xlsx',
       type: 'array',
     });
 
-    // Save file with dynamic filename
+    // Generate and download the Excel file
     const fileName = this.getDynamicFileName();
     this.saveAsExcelFile(excelBuffer, fileName);
   }
 
   private saveAsExcelFile(buffer: any, fileName: string): void {
-    const data: Blob = new Blob([buffer], { type: EXCEL_TYPE });
+    const data: Blob = new Blob([buffer], { type: this.EXCEL_TYPE });
     saveAs(data, fileName);
   }
 
@@ -65,6 +88,3 @@ export class ExcelService {
     return `EmployeeData_${mmddyyyy}.xlsx`;
   }
 }
-
-const EXCEL_TYPE =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';
