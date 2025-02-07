@@ -15,17 +15,26 @@ export class ExcelService {
       font: { bold: true }, // Bold text
       fill: { fgColor: { rgb: 'D3D3D3' } }, // Background color: #D3D3D3 (Light Gray)
       alignment: { horizontal: 'center', vertical: 'center' }, // Center text
+      border: {
+        bottom: { style: 'thin', color: { rgb: '000000' } }, // Black bottom border
+      },
+    
+    };
+
+    // Define styles for the City and Date columns (centered)
+    const centerAlignStyle = {
+      alignment: { horizontal: 'center', vertical: 'center' },
     };
 
     // Define data for the Excel file
     const data = employees.length
       ? employees.map((emp) => ({
-          'First Name': emp.firstName || '',
-          'Last Name': emp.lastName || '',
-          City: emp.city || '',
-          Date: emp.date || '',
+          'First Name': { v: emp.firstName || '' }, // Regular text
+          'Last Name': { v: emp.lastName || '' }, // Regular text
+          City: { v: emp.city || '', s: centerAlignStyle }, // Centered text
+          Date: { v: emp.date || '', s: centerAlignStyle }, // Centered text
         }))
-      : [headers.reduce((acc, header) => ({ ...acc, [header]: '' }), {})];
+      : [headers.reduce((acc, header) => ({ ...acc, [header]: { v: '' } }), {})];
 
     // Create a worksheet
     const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data);
@@ -39,6 +48,7 @@ export class ExcelService {
       if (!worksheet[cellRef]) worksheet[cellRef] = { v: headers[colIndex] }; // Ensure cell exists
       worksheet[cellRef].s = headerStyle; // Apply header styles
     });
+
 
     // Set row height for header (35px)
     worksheet['!rows'] = [{ hpx: 35 }];
