@@ -7,81 +7,77 @@ import { saveAs } from 'file-saver';
 })
 export class ExcelService {
   private readonly EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
   downloadExcel(employees: any[] = []) {
     const headers = ['First Name', 'Last Name', 'City', 'Date'];
 
-    // Define styles for the header row
+    // Define styles
     const headerStyle = {
-      font: { bold: true }, // Bold text
-      fill: { fgColor: { rgb: 'D3D3D3' } }, // Background color: #D3D3D3 (Light Gray)
-      alignment: { horizontal: 'center', vertical: 'center' }, // Center text
-      border: {
-        bottom: { style: 'thin', color: { rgb: '000000' } }, // Black bottom border
-      },
-    
+      font: { bold: true },
+      fill: { fgColor: { rgb: 'D3D3D3' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: { bottom: { style: 'thin', color: { rgb: '000000' } } },
     };
 
-    // Define styles for the City and Date columns (centered)
     const centerAlignStyle = {
       alignment: { horizontal: 'center', vertical: 'center' },
     };
 
-    // Define data for the Excel file
+    // Format data with correct alignment
     const data = employees.length
       ? employees.map((emp) => ({
-          'First Name': { v: emp.firstName || '' }, // Regular text
-          'Last Name': { v: emp.lastName || '' }, // Regular text
-          City: { v: emp.city || '', s: centerAlignStyle }, // Centered text
-          Date: { v: emp.date || '', s: centerAlignStyle }, // Centered text
+          'First Name': { v: emp.firstName || '', s: centerAlignStyle },
+          'Last Name': { v: emp.lastName || '' },
+          City: { v: emp.city || '', s: centerAlignStyle },
+          Date: { v: emp.date || '', s: centerAlignStyle },
         }))
       : [headers.reduce((acc, header) => ({ ...acc, [header]: { v: '' } }), {})];
 
-    // Create a worksheet
+    // Create worksheet
     const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data);
 
-    // Ensure headers are always present
+    // Add headers with styles
     XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: 'A1' });
-
-    // Apply styling to header row
     headers.forEach((_, colIndex) => {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIndex });
-      if (!worksheet[cellRef]) worksheet[cellRef] = { v: headers[colIndex] }; // Ensure cell exists
-      worksheet[cellRef].s = headerStyle; // Apply header styles
+      if (!worksheet[cellRef]) worksheet[cellRef] = { v: headers[colIndex] };
+      worksheet[cellRef].s = headerStyle;
     });
 
+    // Auto-format cells with borders for better readability
+    const totalRows = employees.length || 1;
+    for (let rowIndex = 1; rowIndex <= totalRows; rowIndex++) {
+      headers.forEach((_, colIndex) => {
+        const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+        if (!worksheet[cellRef]) worksheet[cellRef] = { v: '' };
+        worksheet[cellRef].s = {
+          alignment: { horizontal: colIndex !== 1 ? 'center' : 'left' },
+          border: {
+            bottom: rowIndex === totalRows ? { style: 'thin', color: { rgb: '000000' } } : undefined,
+            right: colIndex === headers.length - 1 ? { style: 'thin', color: { rgb: '000000' } } : undefined,
+          },
+        };
+      });
+    }
 
-    // Set row height for header (35px)
+    // Set row height & column widths
     worksheet['!rows'] = [{ hpx: 35 }];
-
-    // Set column widths
     worksheet['!cols'] = [
-      { wch: 20 }, // First Name - Auto width
-      { wch: 57 }, // Last Name - Fixed width (57)
-      { wch: 20 }, // City - Auto width
-      { wch: 20 }, // Date - Auto width
+      { wch: 20 },
+      { wch: 57 },
+      { wch: 20 },
+      { wch: 20 },
     ];
 
     // Apply auto filter
     if (worksheet['!ref']) {
-      const range = XLSX.utils.decode_range(worksheet['!ref']);
-      worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+      worksheet['!autofilter'] = { ref: worksheet['!ref'] };
     }
 
-    // Create a workbook and append the worksheet
-    const workbook: XLSX.WorkBook = {
-      Sheets: { Employees: worksheet },
-      SheetNames: ['Employees'],
-    };
-
-    // Convert workbook to a binary Excel file
-    const excelBuffer: any = XLSX.write(workbook, {
-      bookType: 'xlsx',
-      type: 'array',
-    });
-
-    // Generate and download the Excel file
-    const fileName = this.getDynamicFileName();
-    this.saveAsExcelFile(excelBuffer, fileName);
+    // Create workbook and save file
+    const workbook: XLSX.WorkBook = { Sheets: { Employees: worksheet }, SheetNames: ['Employees'] };
+    const excelBuffer: any = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    this.saveAsExcelFile(excelBuffer, this.getDynamicFileName());
   }
 
   private saveAsExcelFile(buffer: any, fileName: string): void {
@@ -91,10 +87,6 @@ export class ExcelService {
 
   private getDynamicFileName(): string {
     const now = new Date();
-    const mmddyyyy = `${(now.getMonth() + 1).toString().padStart(2, '0')}${now
-      .getDate()
-      .toString()
-      .padStart(2, '0')}${now.getFullYear()}`;
-    return `EmployeeData_${mmddyyyy}.xlsx`;
+    return `EmployeeData_${now.getMonth() + 1}${now.getDate()}${now.getFullYear()}.xlsx`;
   }
 }
