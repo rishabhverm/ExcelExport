@@ -14,7 +14,7 @@ export class ExcelService {
     // Define styles
     const headerStyle = {
       font: { bold: true },
-      fill: { fgColor: { rgb: 'D3D3D3' } },
+      fill: { fgColor: { rgb: 'd3d3d3' } }, // Use the color declared in styles.css
       alignment: { horizontal: 'center', vertical: 'center' },
       border: { bottom: { style: 'thin', color: { rgb: '000000' } } },
     };
